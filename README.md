@@ -25,10 +25,11 @@ This is a working proof-of-concept showing how far file-based memory can scale u
 
 ## Repository Structure
 
+The companion app will fully reside in the `todo-app` folder. This top root folder level is for documenting the premise of this todo app as a learning aid.
+
 ```
-three-tier-mem/
+todo-app/
 ├── README.md                          # Setup and usage
-├── pyproject.toml                     # UV project configuration
 ├── dist.env                           # API key template
 ├── agent.py                           # Main agent implementation
 ├── CLAUDE.md                          # Global agent concerns and principles
