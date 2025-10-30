@@ -14,13 +14,13 @@ This is a working proof-of-concept showing how far file-based memory can scale u
 2. **Dynamic Memory (Tier 2)** - Domain entities loaded progressively as needed
 3. **Task Memory (Tier 3)** - Procedural knowledge (Skills) loaded on-demand
 
-**Key Insight**: Files + progressive disclosure patterns handle surprising scale (100+ entities efficiently) before you need databases.
+**Key Insight**: Files + progressive disclosure patterns handle surprising scale before you need databases.
 
 ## Tech Stack
 
-- Python 3.11+ (UV-managed)
-- Anthropic Agent SDK (with memory tool)
-- Agent Skills support
+- Python 3.13+ (UV-managed)
+- Claude Agent SDK (with [memory tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/memory-tool)) (good [baseline agent example](https://github.com/anthropics/claude-cookbooks/blob/main/claude_agent_sdk/00_The_one_liner_research_agent.ipynb)
+- Agent [Skills](https://docs.claude.com/en/api/skills-guide) support 
 - Modern tooling: UV for dependency management
 
 ## Repository Structure
@@ -209,10 +209,10 @@ This helps understand the efficiency gains from progressive disclosure.
 ## Performance Characteristics
 
 ### File-Based Scale
-- **<5 entities** � Load all (simple)
-- **5-500 entities** � Progressive disclosure with grep (this demo)
-- **500-5,000 entities** � Still works! Add indexing scripts
-- **>5K entities** � Consider alternatives (but you're building Jira at this point)
+- **<5 entities** Load all (simple)
+- **5-500 entities** Progressive disclosure with grep (this demo)
+- **500-5,000 entities** Still works! Add indexing scripts
+- **>5K entities** Consider alternatives (but you're building Jira at this point)
 
 ### Why Files Work at Scale
 - Grep is fast (milliseconds for hundreds of files)
@@ -263,7 +263,4 @@ This implementation demonstrates:
 - Files + progressive disclosure scale surprisingly far
 - The pattern (three tiers, progressive disclosure) is storage-agnostic
 - Start simple with files, migrate only when you hit real limits (most never will)
-
-## License
-
-[Add your license here]
+- Since plain text file based, github could be your persistence solution
