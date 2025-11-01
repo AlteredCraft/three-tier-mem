@@ -32,23 +32,22 @@ todo-app/
 ├── README.md                          # Setup and usage
 ├── dist.env                           # API key template
 ├── agent.py                           # Main agent implementation
-├── CLAUDE.md                          # Global agent concerns and principles
-├── static_memory/
-│   └── CLAUDE.md                      # Tier 1: Always-loaded memory system facts
+├── CLAUDE.md                          # Tier 1: Always-loaded memory system facts
 ├── memories/                          # Tier 2: Dynamic memory (agent-managed)
 │   └── tasks/
 │       ├── task-001.md                # Example task
-│       └── task-002.md                # Example task (100+ in demo)
-├── skills/
+│       ├── task-002.md                # Example task
+│       └── ...                        # (9 sample tasks included)
+├── skills/                            # Tier 3: Procedural knowledge (future)
 │   ├── CLAUDE.md                      # Global skill concerns
-│   └── schedule-task/                 # Tier 3: PRIMARY file-based implementation
+│   └── schedule-task/                 # PRIMARY file-based implementation
 │       ├── SKILL.md                   # Skill overview and directives
 │       ├── reference/
 │       │   ├── date-handling.md       # Best practices for dates
 │       │   └── examples.md            # Few-shot examples
 │       └── scripts/
 │           └── search_tasks.py        # Grep utility for task files
-└── schedule-task-sqlite/              # BONUS: Migration example (if needed)
+└── schedule-task-sqlite/              # BONUS: Migration example (optional)
     ├── README.md                      # Instructions for switching implementations
     ├── SKILL.md                       # Same interface, different storage
     ├── schema.sql                     # Simple task table
@@ -94,44 +93,54 @@ uv run agent.py --debug
 
 ## How It Works
 
-### Tier 1: Static Memory (`static_memory/CLAUDE.md`)
+### Tier 1: Static Memory (`todo-app/CLAUDE.md`)
 
-Always loaded into the system prompt on every interaction.
+Always loaded into the system prompt on every interaction via SDK's `setting_sources=["project"]`.
 
 **Contains**:
 - User preferences (date format, scheduling style)
-- Memory system configuration
-- Project context
+- Memory system configuration and guidelines
+- Task file format specification
+- Progressive disclosure instructions
 
 **Cost**: ~500 tokens per request
 
 **When to use**: Information needed for every interaction
 
+**Implementation**: Standard CLAUDE.md file that agent SDK auto-loads from working directory
+
 ### Tier 2: Dynamic Memory (`memories/tasks/*.md`)
 
 Domain entities stored as individual files, loaded progressively as needed.
 
-**Structure** (prescribed by skill):
+**Structure** (defined in CLAUDE.md):
 ```markdown
 ---
 id: task-001
 title: Deploy to production
-date: 2025-10-28
+date: 2025-11-15
 status: pending
-created: 2025-10-24T10:30:00Z
+priority: high
+created: 2025-11-01T10:30:00Z
+project: web-platform
 ---
 
 Review deployment checklist and coordinate with DevOps team.
 ```
 
 **How it works**:
-- Agent creates/updates via memory tool
-- Skill scripts search and filter without loading all files
-- Only relevant entities loaded into context
+- Agent creates/updates task files using **Write** tool
+- Agent searches via **Bash** tool with grep (e.g., `grep -l "status: pending" memories/tasks/*.md`)
+- Agent loads only matched files using **Read** tool
+- Progressive disclosure: search → filter → load only what's needed
 
 **Cost**: Only tokens for loaded entities (~500 tokens for typical operations vs 15,000 if loading all 100 tasks)
 
+**Token Savings**: **30x reduction** through progressive disclosure
+
 **When to use**: Data needed selectively based on context
+
+**Implementation**: Standard file operations with Read/Write/Bash tools (LLM-agnostic approach)
 
 ### Tier 3: Task Memory (`skills/schedule-task/`)
 
@@ -169,11 +178,11 @@ Procedural knowledge (Skills) loaded on-demand when invoked.
 
 ### Scenario 2: "Schedule deployment review for next Tuesday"
 
-1. Agent uses static memory to determine today's date context
-2. Agent calculates exact date (2025-10-29)
-3. Skill directives guide proper date format and structure
-4. Agent creates `memories/tasks/task-003.md` via memory tool
-5. **File operation**: Single write, no locking needed
+1. Agent uses static memory (CLAUDE.md) to determine date format preferences
+2. Agent calculates exact date (2025-11-12)
+3. CLAUDE.md provides task file format and structure
+4. Agent creates `memories/tasks/task-010.md` using **Write** tool
+5. **File operation**: Single write, no locking needed, human-readable format
 
 ### Scenario 3: "Check if I have any conflicts that day"
 

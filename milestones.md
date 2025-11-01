@@ -12,11 +12,12 @@
 - Define user preferences, date formats, and system configuration
 - Integrate static memory via SDK's `setting_sources=["project"]` (~500 token budget)
 
-## 2. Dynamic Memory (Tier 2)
+## 2. Dynamic Memory (Tier 2) ✅
 - Implement `memories/tasks/` directory structure
 - Define task markdown format with YAML frontmatter
-- Enable agent memory tool for creating/updating task files
-- Add progressive disclosure: load only needed entities
+- Enable agent to create/update task files using Write tool
+- Add progressive disclosure: search with grep, load only needed entities
+- Created 9 sample tasks demonstrating the system
 
 ## 3. Task Memory (Tier 3) - Skills System
 - Create `skills/schedule-task/` with SKILL.md directives

@@ -10,15 +10,16 @@ This file contains always-loaded facts and preferences for the task management a
 - System-level facts that never change
 - Date/time formats and conventions
 - Budget: ~500 tokens
-- Location: `static_memory/CLAUDE.md`
+- Location: `CLAUDE.md` (this file)
 
 ### Tier 2: Dynamic Memory
 **Progressively loaded via search/grep**
 - Task entities stored as individual markdown files
 - Files only loaded when relevant to current query
-- Use grep/search scripts to filter before loading
+- Use grep/search to filter before loading
 - Budget: Variable (only load what's needed)
 - Location: `memories/tasks/*.md`
+- Tools: Write (create), Read (load), Bash with grep (search)
 
 ### Tier 3: Task Memory (Skills)
 **On-demand procedural knowledge**
@@ -48,13 +49,80 @@ This file contains always-loaded facts and preferences for the task management a
 - Typical query: ~500 tokens static + ~500 tokens dynamic = 1000 tokens total
 - Avoid loading all 100+ tasks (would be 15,000+ tokens)
 
+## Tier 2: Task File Format
+
+Tasks are stored in `memories/tasks/` as individual markdown files with YAML frontmatter:
+
+```markdown
+---
+id: task-001
+title: Deploy to production
+date: 2025-11-15
+status: pending
+priority: high
+created: 2025-11-01T10:30:00Z
+---
+
+Review deployment checklist and coordinate with DevOps team.
+Ensure all tests pass before deploying.
+```
+
+**Required fields:**
+- `id`: Unique identifier (e.g., task-001, task-002)
+- `title`: Short task description
+- `date`: Due date in YYYY-MM-DD format
+- `status`: One of: `pending`, `in_progress`, `completed`, `blocked`
+- `created`: ISO 8601 timestamp of creation
+
+**Optional fields:**
+- `priority`: One of: `low`, `medium`, `high`, `critical`
+- `tags`: Comma-separated tags
+- `project`: Project name
+
+## Working with Dynamic Memory (Tier 2)
+
+### Creating Tasks
+Use the **Write** tool to create new task files:
+```
+File: memories/tasks/task-{next-id}.md
+Content: (markdown with YAML frontmatter as shown above)
+```
+
+### Searching Tasks (Progressive Disclosure)
+**ALWAYS search before loading!** Use **Bash** tool with grep:
+
+```bash
+# Find tasks by status
+grep -l "status: pending" memories/tasks/*.md
+
+# Find tasks by date range
+grep -l "date: 2025-11" memories/tasks/*.md
+
+# Find tasks by keyword in content
+grep -l "deployment" memories/tasks/*.md
+
+# Combine with other tools to count matches
+grep -l "status: pending" memories/tasks/*.md | wc -l
+```
+
+### Loading Tasks
+After searching, use **Read** tool to load ONLY the matched files:
+```
+Read: memories/tasks/task-001.md
+Read: memories/tasks/task-005.md
+```
+
+### Updating Tasks
+Use **Edit** tool to modify specific fields without loading full file first.
+
 ## Memory System Commands
 
 When working with tasks:
-- **Search first**: Use grep/search tools to find relevant tasks
+- **Search first**: Use grep to find relevant tasks (examples above)
 - **Load selectively**: Only read the specific files matched by search
 - **Create atomically**: Each task is a separate file with unique ID
 - **Update carefully**: Modify only the fields that changed
+- **Never load all**: Avoid `Read memories/tasks/*.md` - always filter first
 
 ## Token Budget Goals
 
