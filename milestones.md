@@ -19,11 +19,12 @@
 - Add progressive disclosure: search with grep, load only needed entities
 - Created 9 sample tasks demonstrating the system
 
-## 3. Task Memory (Tier 3) - Skills System
-- Create `skills/schedule-task/` with SKILL.md directives
+## 3. Task Memory (Tier 3) - Skills System ✅
+- Create `skills/schedule-task/` with SKILL.md directives (YAML frontmatter format)
 - Build `search_tasks.py` grep utility for filtering without full context load
-- Add `reference/` docs for progressive context loading
-- Demonstrate on-demand skill invocation
+- Add `reference/` docs (date-handling.md, examples.md) for progressive context loading
+- Implement `list_skills.py` for lightweight skill discovery
+- Demonstrate on-demand skill invocation with hybrid approach (SKILL.md format + standard tools)
 
 ## 4. Token Efficiency Validation
 - Instrument debug mode with per-tier token tracking

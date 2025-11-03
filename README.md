@@ -144,37 +144,70 @@ Review deployment checklist and coordinate with DevOps team.
 
 ### Tier 3: Task Memory (`skills/schedule-task/`)
 
-Procedural knowledge (Skills) loaded on-demand when invoked.
+Procedural knowledge (Skills) loaded on-demand when invoked. Uses portable SKILL.md format with standard Read/Write/Bash tools (hybrid approach).
+
+**Architecture: Lightweight Skill Discovery**
+
+Agent discovers skills without loading full content:
+```bash
+uv run scripts/list_skills.py
+```
+
+Returns JSON metadata:
+```json
+[
+  {
+    "name": "schedule-task",
+    "description": "Task management with progressive disclosure...",
+    "path": "skills/schedule-task"
+  }
+]
+```
 
 **Components**:
-- **SKILL.md**: Skill overview and directives
-  - Date handling guidance
-  - Task file structure specification
+- **SKILL.md**: Skill overview with YAML frontmatter + directives
+  - Progressive disclosure workflow
   - When to use helper scripts
-- **reference/**: Additional context loaded progressively
-  - `date-handling.md`: Best practices
-  - `examples.md`: Few-shot examples
-- **scripts/**: Utilities for searching/filtering
-  - `search_tasks.py`: Grep utility for task files
+  - When to load reference files
+- **scripts/**: Python utilities executed via Bash tool
+  - `search_tasks.py`: Filter tasks by status/priority/date/text
+  - Returns file paths (not content) for selective loading
+- **reference/**: Additional context loaded only when needed
+  - `date-handling.md`: Best practices for date parsing
+  - `examples.md`: Good/bad task creation examples
 
 **How it works**:
-- Skill only loads when needed
-- Scripts execute without loading full context
-- Reference files provide additional guidance when confusion occurs
+1. Agent discovers skills via `list_skills.py` (minimal tokens)
+2. When task-relevant, agent loads SKILL.md via Read tool
+3. Scripts execute via Bash tool (output only, no source in context)
+4. Reference files load progressively when confusion occurs
+5. Progressive disclosure: metadata → skill → scripts → references
 
-**Cost**: Only loaded when skill is invoked (~500 tokens)
+**Cost**: Only loaded when skill is invoked
+- Skill metadata: ~50 tokens
+- SKILL.md: ~500 tokens
+- Script outputs: ~50 tokens (just file paths)
+- References: ~300 tokens each (only if needed)
+
+**Token Savings**: 30x reduction by not loading full skill content or all reference materials upfront
 
 **When to use**: Complex procedures not needed in every interaction
+
+**Implementation**: Portable SKILL.md format + standard tools (LLM-agnostic, upgrade path to Skills API if needed)
 
 ## Example Workflows
 
 ### Scenario 1: "What do I have scheduled this week?"
 
-1. Agent invokes schedule-task skill (SKILL.md loads)
-2. Skill uses `search_tasks.py` (script executes, returns task IDs)
-3. Agent reads specific task files from `memories/tasks/`
-4. **Token cost**: ~500 (vs 15,000 if loading all 100 tasks)
-5. Agent responds with filtered list
+1. Agent checks available skills via `uv run scripts/list_skills.py`
+2. Finds schedule-task skill, loads `skills/schedule-task/SKILL.md`
+3. Skill directives instruct to use search_tasks.py before loading tasks
+4. Agent runs: `uv run skills/schedule-task/scripts/search_tasks.py --date-after 2025-11-10 --date-before 2025-11-16`
+5. Script returns 3 matching file paths
+6. Agent reads only those 3 task files via Read tool
+7. **Token cost**: ~1,100 total (50 metadata + 500 skill + 50 script output + 500 for 3 tasks)
+8. **vs 15,000 if loading all 100 tasks** = 13x reduction
+9. Agent responds with formatted task list
 
 ### Scenario 2: "Schedule deployment review for next Tuesday"
 

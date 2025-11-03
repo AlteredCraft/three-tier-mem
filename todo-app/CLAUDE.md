@@ -124,11 +124,98 @@ When working with tasks:
 - **Update carefully**: Modify only the fields that changed
 - **Never load all**: Avoid `Read memories/tasks/*.md` - always filter first
 
+## Tier 3: Working with Skills
+
+Skills are procedural knowledge packages loaded on-demand. They contain directives, scripts, and reference materials organized for progressive disclosure.
+
+### Discovering Available Skills
+
+**Before using any skill**, discover what's available:
+
+```bash
+uv run scripts/list_skills.py
+```
+
+This returns JSON with skill metadata (name, description, path):
+```json
+[
+  {
+    "name": "schedule-task",
+    "description": "Task management with progressive disclosure...",
+    "path": "skills/schedule-task"
+  }
+]
+```
+
+### Using a Skill
+
+**When a task requires a skill:**
+
+1. **Check relevance**: Is this task related to a discovered skill?
+2. **Load SKILL.md**: `Read skills/{skill-name}/SKILL.md`
+3. **Follow directives**: SKILL.md contains instructions and workflows
+4. **Use scripts**: Run skill scripts via `python skills/{skill-name}/scripts/{script}.py`
+5. **Progressive references**: Load `reference/*.md` files only when confusion occurs
+
+### Example: Using schedule-task Skill
+
+**When to load:**
+- User wants to create/search/update tasks
+- User asks about scheduling or task management
+- Task-related queries need procedural guidance
+
+**Workflow:**
+```bash
+# 1. Load the skill
+Read skills/schedule-task/SKILL.md
+
+# 2. Use scripts for filtering (before loading tasks!)
+uv run skills/schedule-task/scripts/search_tasks.py --status pending --priority high
+
+# 3. Load only matched task files
+Read memories/tasks/task-001.md
+Read memories/tasks/task-005.md
+
+# 4. If date confusion occurs, load reference
+Read skills/schedule-task/reference/date-handling.md
+
+# 5. If examples needed
+Read skills/schedule-task/reference/examples.md
+```
+
+### Progressive Disclosure with Skills
+
+**Load order (from least to most tokens):**
+1. Skill metadata (via list_skills.py) - minimal tokens
+2. SKILL.md directives - ~500 tokens
+3. Reference files - only when needed - ~300 tokens each
+4. Scripts execute without context (output only)
+
+**Don't:**
+- Load all skills upfront
+- Load SKILL.md if task doesn't need it
+- Load all reference files (only on confusion)
+- Read script source code (just execute and use output)
+
+### Skill Guidelines
+
+- **One skill at a time**: Load only the skill relevant to current task
+- **Script outputs only**: Don't load script source, just run and use results
+- **Reference on-demand**: Load reference/*.md only when directives aren't clear
+- **Trust SKILL.md**: It contains the workflow, follow its instructions
+
 ## Token Budget Goals
 
 The three-tier system aims to keep typical operations under 1,500 tokens from memory:
 - Tier 1 (Static): ~500 tokens (this file)
 - Tier 2 (Dynamic): ~500 tokens (2-3 task files after search)
-- Tier 3 (Skills): ~500 tokens (skill directive, not full reference)
+- Tier 3 (Skills): ~500 tokens (SKILL.md only, not references)
+
+**Typical workflow tokens:**
+- list_skills.py output: ~50 tokens
+- SKILL.md: ~500 tokens
+- search_tasks.py output: ~50 tokens (just file paths)
+- 2-3 task files: ~500 tokens
+- Total: ~1,100 tokens
 
 This represents a **30x reduction** compared to eagerly loading all 100 tasks at once.
