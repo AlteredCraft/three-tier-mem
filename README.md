@@ -19,8 +19,9 @@ This is a working proof-of-concept showing how far file-based memory can scale u
 ## Tech Stack
 
 - Python 3.13+ (UV-managed)
-- Claude Agent SDK (good [baseline agent example](https://github.com/anthropics/claude-cookbooks/blob/main/claude_agent_sdk/00_The_one_liner_research_agent.ipynb))
-- LLM-agnostic patterns: mimics SDK [memory tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/memory-tool) and [Skills](https://docs.claude.com/en/api/skills-guide) using standard Read/Write/Bash tools
+- [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-python) (direct API for LLM-agnostic patterns)
+- Explicit tool definitions and agentic loop implementation (educational transparency)
+- LLM-agnostic patterns: portable tool schemas, visible message history management
 - Modern tooling: UV for dependency management
 
 ## Repository Structure
@@ -105,7 +106,7 @@ uv run agent.py --debug
 
 ### Tier 1: Static Memory (`todo-app/CLAUDE.md`)
 
-Always loaded into the system prompt on every interaction via SDK's `setting_sources=["project"]`.
+Always loaded into the system prompt on every interaction via explicit file reading.
 
 **Contains**:
 - User preferences (date format, scheduling style)
@@ -117,7 +118,7 @@ Always loaded into the system prompt on every interaction via SDK's `setting_sou
 
 **When to use**: Information needed for every interaction
 
-**Implementation**: Standard CLAUDE.md file that agent SDK auto-loads from working directory via `setting_sources=["project"]`
+**Implementation**: CLAUDE.md is read at startup using `load_system_prompt()` function and injected into the `system` parameter of API calls. This makes static memory loading explicit and visible (see `agent.py:124-156`).
 
 ### Tier 2: Dynamic Memory (`memories/tasks/*.md`)
 
@@ -150,7 +151,7 @@ Review deployment checklist and coordinate with DevOps team.
 
 **When to use**: Data needed selectively based on context
 
-**Implementation**: Standard file operations with Read/Write/Bash tools - mimics SDK memory tool patterns but remains LLM-agnostic
+**Implementation**: Custom tool definitions (`read_file`, `write_file`, `bash`, `grep`, `glob`) with explicit schemas (see `agent.py:30-109`). Tools are executed via `execute_tool()` function in the agentic loop, demonstrating portable patterns that work with any LLM supporting tool use.
 
 ### Tier 3: Task Memory (`skills/schedule-task/`)
 
@@ -204,6 +205,26 @@ Returns JSON metadata:
 **When to use**: Complex procedures not needed in every interaction
 
 **Implementation**: Portable SKILL.md format + standard tools (LLM-agnostic, upgrade path to Skills API if needed)
+
+## Agentic Loop Implementation
+
+The agent implements an explicit agentic loop (see `agent.py:265-389`) that demonstrates LLM-agnostic tool use patterns:
+
+**Flow**:
+1. Add user message to conversation history
+2. Call Claude API with full message history
+3. Check `stop_reason` in response:
+   - `"tool_use"`: Extract tool calls → execute → add results to messages → loop back to step 2
+   - `"end_turn"`: Extract text response and return to user
+   - `"max_tokens"`: Handle truncation
+
+**Key Educational Points**:
+- **Message History Management**: Explicit list of message dictionaries (agent.py:450)
+- **Tool Execution**: Direct implementation showing tool call → execution → result formatting (agent.py:330-356)
+- **Stop Reason Handling**: Visible branching logic for different completion states (agent.py:329-389)
+- **Token Tracking**: Manual accumulation across agentic loop turns (agent.py:303-321)
+
+This explicit implementation makes the agentic pattern visible and portable to other LLMs that support tool use (OpenAI, Gemini, etc.).
 
 ## Example Workflows
 
@@ -307,17 +328,20 @@ This demonstrates the migration path when file-based storage reaches its limits.
 This implementation demonstrates:
 1. **Files scale**: Progressive disclosure enables efficient management at scale
 2. **Token savings**: Target 30x reduction through progressive disclosure (M4 validation)
-3. **LLM-agnostic patterns**: Mimics SDK features using standard tools
-4. **Migration path**: SQLite alternative planned (M5) when limits are reached
-5. **Modern setup**: UV-based project for easy reproduction
-6. **Educational value**: Clear visibility into memory tier mechanics
+3. **LLM-agnostic patterns**: Direct API with explicit tool schemas and agentic loop
+4. **Educational transparency**: Visible tool definitions, message history, and loop logic
+5. **Portable implementation**: Patterns work with any LLM supporting tool use (OpenAI, Gemini, etc.)
+6. **Migration path**: SQLite alternative planned (M5) when limits are reached
+7. **Modern setup**: UV-based project for easy reproduction
 
 ## Key Takeaways
 
-- Memory systems are really about context window management
-- Three tiers = three loading strategies (always, progressive, on-demand)
-- Files + progressive disclosure scale surprisingly far before needing databases
-- LLM-agnostic: Uses standard tools (Read/Write/Bash) rather than SDK-specific features
-- The pattern (three tiers, progressive disclosure) is storage-agnostic
-- Start simple with files, migrate only when hitting real limits (M5 explores this path)
-- Plain text files work with version control and are human-readable for debugging
+- **Memory is context management**: Three tiers = three loading strategies (always, progressive, on-demand)
+- **Files scale far**: Progressive disclosure handles significant scale before needing databases
+- **True LLM-agnostic**: Direct API with explicit tool definitions, portable to OpenAI/Gemini/etc.
+- **Educational transparency**: Agentic loop, tool execution, and message history are all visible
+- **Patterns over frameworks**: Tool schemas and progressive disclosure work regardless of storage backend
+- **Start simple**: File-based implementation sufficient for most use cases (M5 explores database migration)
+- **Plain text benefits**: Version control friendly, human-readable, easy to debug
+
+**Migration Note**: This project previously used the Claude Agent SDK for rapid prototyping. We migrated to the direct Anthropic SDK to demonstrate truly LLM-agnostic patterns and provide educational visibility into the agentic loop implementation. The three-tier memory architecture remained unchanged during this migration, proving its portability.

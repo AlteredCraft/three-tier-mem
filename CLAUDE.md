@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository demonstrates a three-tier agent memory system architecture that optimizes context window usage through progressive disclosure patterns. The project is in early development stages, with the implementation planned to reside in the `todo-app/` directory.
+This repository demonstrates a three-tier agent memory system architecture that optimizes context window usage through progressive disclosure patterns. The implementation resides in the `todo-app/` directory.
 
 **Core Architecture**: Three-tier memory system where each tier uses different loading strategies:
 1. **Static Memory (Tier 1)**: Always-loaded facts and preferences (~500 tokens)
@@ -12,6 +12,8 @@ This repository demonstrates a three-tier agent memory system architecture that 
 3. **Task Memory (Tier 3)**: Procedural knowledge (Skills) loaded on-demand
 
 **Key Design Principle**: Files + progressive disclosure patterns can scale to hundreds of entities before requiring databases. Use grep/search scripts to filter without loading full context.
+
+**Implementation Approach**: Uses direct Anthropic SDK with explicit tool definitions and agentic loop for LLM-agnostic, educational transparency. All patterns are portable to other LLMs (OpenAI, Gemini, etc.).
 
 ## Development Setup
 
@@ -45,28 +47,30 @@ uv run todo-app/agent.py --debug
 **Root level**: Documentation of the three-tier memory concept and architecture
 **todo-app/**: Complete implementation of the working demo application
 
-Key directories (planned):
-- `todo-app/static_memory/`: Tier 1 - Always-loaded memory system facts (CLAUDE.md)
+Key directories:
+- `todo-app/CLAUDE.md`: Tier 1 - Always-loaded static memory (loaded explicitly via `load_system_prompt()`)
 - `todo-app/memories/tasks/`: Tier 2 - Dynamic memory entities (task-*.md files)
 - `todo-app/skills/`: Tier 3 - On-demand procedural knowledge
   - Each skill contains: SKILL.md, reference/ docs, and scripts/ utilities
-- `todo-app/schedule-task-sqlite/`: Optional SQLite migration example
+- `todo-app/scripts/`: Utility scripts (skill discovery, etc.)
+- `todo-app/agent.py`: Main agent with explicit agentic loop implementation
 
 ## Architecture Patterns
 
 ### Memory Tier Guidelines
 
-**Static Memory (static_memory/CLAUDE.md)**:
+**Static Memory (todo-app/CLAUDE.md)**:
 - User preferences, date formats, scheduling style
 - Memory system configuration
 - Project context
 - Cost: ~500 tokens per request
 - Use for: Information needed in every interaction
+- Implementation: Loaded explicitly via `load_system_prompt()` function (agent.py:124-156)
 
 **Dynamic Memory (memories/tasks/*.md)**:
 - Individual markdown files per entity with YAML frontmatter
-- Agent creates/updates via memory tool
-- Search/filter using scripts without loading all files
+- Agent creates/updates via `write_file` tool
+- Search/filter using `bash`, `grep`, and `glob` tools without loading all files
 - Use for: Data needed selectively based on context
 - Example structure:
   ```markdown
@@ -124,9 +128,31 @@ Key directories (planned):
 
 - **Python 3.13+**: Primary language
 - **UV**: Dependency and environment management (replaces pip/venv)
-- **Claude Agent SDK**: Agent implementation with memory tool support
-- **Skills API**: On-demand procedural knowledge loading
-- File system as primary storage (SQLite optional)
+- **Anthropic SDK**: Direct API with explicit tool definitions and agentic loop
+- **LLM-Agnostic Design**: Portable patterns that work with any tool-supporting LLM
+- File system as primary storage (SQLite optional migration path in M5)
+
+## Implementation Notes
+
+**Agentic Loop** (agent.py:265-389):
+- Explicit implementation of tool_use → execute → tool_result pattern
+- Educational transparency: all steps visible in code
+- Portable to other LLMs (OpenAI function calling, Gemini tool use, etc.)
+
+**Tool Definitions** (agent.py:30-109):
+- Custom JSON schemas for: `read_file`, `write_file`, `bash`, `grep`, `glob`
+- Direct implementation in `execute_tool()` function
+- No SDK magic - all behavior is explicit
+
+**Static Memory Loading** (agent.py:124-156):
+- Manual file reading of CLAUDE.md at startup
+- Injected into `system` parameter on API calls
+- Replaces SDK's automatic `setting_sources` loading
+
+**Migration History**:
+- Originally implemented with Claude Agent SDK for rapid prototyping (M1-M3)
+- Migrated to direct Anthropic SDK for educational transparency and LLM portability
+- Three-tier memory architecture remained unchanged, proving pattern portability
 
 ## SQLite Migration Path (Optional)
 
