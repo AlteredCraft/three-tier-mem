@@ -2,7 +2,7 @@
 
 An experimental implementation demonstrating how memory systems scale through three tiers optimized for different context needs: static facts (always loaded), dynamic entities (progressively disclosed), and procedural knowledge (on-demand).
 
-This is a working proof-of-concept showing how far file-based memory can scale using progressive disclosure patterns, with an optional SQLite migration path included.
+This is a working proof-of-concept showing how far file-based memory can scale using progressive disclosure patterns. An LLM-agnostic approach that mimics SDK memory/skills patterns using standard tools.
 
 ## Core Concept
 
@@ -12,47 +12,50 @@ This is a working proof-of-concept showing how far file-based memory can scale u
 
 1. **Static Memory (Tier 1)** - Always loaded facts and preferences
 2. **Dynamic Memory (Tier 2)** - Domain entities loaded progressively as needed
-3. **Task Memory (Tier 3)** - Procedural knowledge (Skills) loaded on-demand
+3. **Task Memory (Tier 3)** - Procedural knowledge (Skills), these are represented as scripts the LLM can reuse.
 
-**Key Insight**: Files + progressive disclosure patterns handle surprising scale before you need databases.
+**Key Insight**: Files + progressive disclosure patterns handle surprising scale before you need more complex solutions. This LLM-agnostic implementation uses standard tools (Read/Write/Bash) rather than SDK-specific memory features, making the patterns portable and educational.
 
 ## Tech Stack
 
 - Python 3.13+ (UV-managed)
-- Claude Agent SDK (with [memory tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/memory-tool)) (good [baseline agent example](https://github.com/anthropics/claude-cookbooks/blob/main/claude_agent_sdk/00_The_one_liner_research_agent.ipynb)
-- Agent [Skills](https://docs.claude.com/en/api/skills-guide) support 
+- Claude Agent SDK (good [baseline agent example](https://github.com/anthropics/claude-cookbooks/blob/main/claude_agent_sdk/00_The_one_liner_research_agent.ipynb))
+- LLM-agnostic patterns: mimics SDK [memory tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/memory-tool) and [Skills](https://docs.claude.com/en/api/skills-guide) using standard Read/Write/Bash tools
 - Modern tooling: UV for dependency management
 
 ## Repository Structure
 
-The companion app will fully reside in the `todo-app` folder. This top root folder level is for documenting the premise of this todo app as a learning aid.
+The companion app fully resides in the `todo-app/` folder. The root level contains learning documentation and project overview.
+
+**Note**: `CLAUDE.md` exists at both levels:
+- Root `CLAUDE.md`: Learning context and high-level architecture overview
+- `todo-app/CLAUDE.md`: Agent's static memory (Tier 1) - always loaded by the agent
 
 ```
 todo-app/
 ├── README.md                          # Setup and usage
 ├── dist.env                           # API key template
 ├── agent.py                           # Main agent implementation
-├── CLAUDE.md                          # Tier 1: Always-loaded memory system facts
+├── CLAUDE.md                          # Tier 1: Always-loaded static memory
+├── scripts/
+│   └── list_skills.py                 # Skill discovery utility
 ├── memories/                          # Tier 2: Dynamic memory (agent-managed)
 │   └── tasks/
-│       ├── task-001.md                # Example task
-│       ├── task-002.md                # Example task
-│       └── ...                        # (9 sample tasks included)
-├── skills/                            # Tier 3: Procedural knowledge (future)
-│   ├── CLAUDE.md                      # Global skill concerns
-│   └── schedule-task/                 # PRIMARY file-based implementation
-│       ├── SKILL.md                   # Skill overview and directives
-│       ├── reference/
-│       │   ├── date-handling.md       # Best practices for dates
-│       │   └── examples.md            # Few-shot examples
-│       └── scripts/
-│           └── search_tasks.py        # Grep utility for task files
-└── schedule-task-sqlite/              # BONUS: Migration example (optional)
-    ├── README.md                      # Instructions for switching implementations
-    ├── SKILL.md                       # Same interface, different storage
-    ├── schema.sql                     # Simple task table
-    └── task_db.py                     # SQL query utilities
+│       ├── task-001.md                # Sample task files
+│       ├── task-002.md                # (9 tasks included)
+│       └── ...
+└── skills/                            # Tier 3: Procedural knowledge
+    ├── CLAUDE.md                      # Global skill directives
+    └── schedule-task/                 # File-based task management skill
+        ├── SKILL.md                   # Skill overview and directives
+        ├── reference/
+        │   ├── date-handling.md       # Date handling best practices
+        │   └── examples.md            # Task creation examples
+        └── scripts/
+            └── search_tasks.py        # Progressive disclosure search utility
 ```
+
+**Note**: The SQLite migration example (`schedule-task-sqlite/`) is planned for Milestone 5 and not yet implemented.
 
 ## Setup
 
@@ -82,12 +85,19 @@ uv sync
 
 ### Running the Agent
 
+From repository root:
 ```bash
-uv run agent.py
+uv run todo-app/agent.py
 ```
 
 With debug mode (shows token usage and context window contents):
 ```bash
+uv run todo-app/agent.py --debug
+```
+
+Or from within `todo-app/` directory:
+```bash
+cd todo-app
 uv run agent.py --debug
 ```
 
@@ -107,7 +117,7 @@ Always loaded into the system prompt on every interaction via SDK's `setting_sou
 
 **When to use**: Information needed for every interaction
 
-**Implementation**: Standard CLAUDE.md file that agent SDK auto-loads from working directory
+**Implementation**: Standard CLAUDE.md file that agent SDK auto-loads from working directory via `setting_sources=["project"]`
 
 ### Tier 2: Dynamic Memory (`memories/tasks/*.md`)
 
@@ -130,17 +140,17 @@ Review deployment checklist and coordinate with DevOps team.
 
 **How it works**:
 - Agent creates/updates task files using **Write** tool
-- Agent searches via **Bash** tool with grep (e.g., `grep -l "status: pending" memories/tasks/*.md`)
+- Agent searches via **Bash** tool with grep or Python scripts
 - Agent loads only matched files using **Read** tool
 - Progressive disclosure: search → filter → load only what's needed
 
-**Cost**: Only tokens for loaded entities (~500 tokens for typical operations vs 15,000 if loading all 100 tasks)
+**Cost**: Only tokens for loaded entities (typically ~500 tokens vs thousands for eager loading)
 
-**Token Savings**: **30x reduction** through progressive disclosure
+**Token Savings**: Significant reduction through progressive disclosure (target: 30x vs loading all entities)
 
 **When to use**: Data needed selectively based on context
 
-**Implementation**: Standard file operations with Read/Write/Bash tools (LLM-agnostic approach)
+**Implementation**: Standard file operations with Read/Write/Bash tools - mimics SDK memory tool patterns but remains LLM-agnostic
 
 ### Tier 3: Task Memory (`skills/schedule-task/`)
 
@@ -206,7 +216,7 @@ Returns JSON metadata:
 5. Script returns 3 matching file paths
 6. Agent reads only those 3 task files via Read tool
 7. **Token cost**: ~1,100 total (50 metadata + 500 skill + 50 script output + 500 for 3 tasks)
-8. **vs 15,000 if loading all 100 tasks** = 13x reduction
+8. **vs loading all tasks eagerly** = significant reduction through progressive disclosure
 9. Agent responds with formatted task list
 
 ### Scenario 2: "Schedule deployment review for next Tuesday"
@@ -222,21 +232,21 @@ Returns JSON metadata:
 1. Skill already loaded from previous interaction
 2. `search_tasks.py` filters by date (grep is fast!)
 3. Agent reads only potentially conflicting tasks
-4. **Performance**: Milliseconds for 100+ files
+4. **Performance**: Fast file-based filtering even at scale
 5. Responds without loading all tasks
 
 ## Progressive Disclosure in Action
 
 **Without progressive disclosure**:
-- Load all 100 tasks = 15,000 tokens
+- Load all tasks eagerly = thousands of tokens
 - Load full skill context every time
 - Expensive and slow
 
 **With progressive disclosure**:
-- Load only SKILL.md initially = ~300 tokens
-- Search via grep (no context cost)
-- Load only relevant task files = ~200 tokens
-- **Total**: ~500 tokens (30x reduction!)
+- Load only SKILL.md initially = ~500 tokens
+- Search via grep/scripts (minimal context cost)
+- Load only relevant task files = ~500 tokens
+- **Total**: ~1,000 tokens typical (significant reduction vs eager loading)
 
 ## Debug Mode
 
@@ -265,15 +275,17 @@ This helps understand the efficiency gains from progressive disclosure.
 - Human-readable debugging
 
 ### Token Efficiency
-**100 task files**:
-- ~50KB on disk
-- Loading all: 15,000 tokens (expensive!)
-- With progressive disclosure: ~500 tokens for typical operations
-- **30x reduction in context usage**
+**At scale**:
+- Files are compact on disk
+- Loading all eagerly: thousands of tokens (expensive!)
+- With progressive disclosure: ~1,000 tokens for typical operations
+- **Target: 30x reduction in context usage** (validation pending in Milestone 4)
 
-## SQLite Migration Path (Optional)
+## SQLite Migration Path (Optional - Milestone 5)
 
-**Location**: `schedule-task-sqlite/` at repo root
+**Status**: Planned for Milestone 5, not yet implemented
+
+**Location (future)**: `schedule-task-sqlite/` at repo root
 
 **When you might want SQLite**:
 - Multiple agents writing tasks simultaneously (ACID transactions)
@@ -281,29 +293,31 @@ This helps understand the efficiency gains from progressive disclosure.
 - JOIN operations across different entity types
 - **Reality**: Most apps never hit these limits
 
-**What changes** (minimal!):
+**What will change** (minimal!):
 - Same three-tier architecture
 - Same skill interface
 - Swap file operations for SQL queries
 - Progressive disclosure still works (WHERE clauses)
-- ~1 hour migration effort
+- Estimated ~1 hour migration effort
 
-**See**: `schedule-task-sqlite/README.md` for switching instructions
+This demonstrates the migration path when file-based storage reaches its limits.
 
 ## Project Goals
 
 This implementation demonstrates:
-1. **Files scale**: 100+ tasks managed efficiently with real metrics
-2. **Token savings**: 30x reduction through progressive disclosure
-3. **Migration path**: SQLite option exists but rarely needed
-4. **Modern setup**: UV-based project for easy reproduction
-5. **Authentic metrics**: Real measurements from actual implementation
+1. **Files scale**: Progressive disclosure enables efficient management at scale
+2. **Token savings**: Target 30x reduction through progressive disclosure (M4 validation)
+3. **LLM-agnostic patterns**: Mimics SDK features using standard tools
+4. **Migration path**: SQLite alternative planned (M5) when limits are reached
+5. **Modern setup**: UV-based project for easy reproduction
+6. **Educational value**: Clear visibility into memory tier mechanics
 
 ## Key Takeaways
 
 - Memory systems are really about context window management
-- Three tiers = three loading strategies
-- Files + progressive disclosure scale surprisingly far
+- Three tiers = three loading strategies (always, progressive, on-demand)
+- Files + progressive disclosure scale surprisingly far before needing databases
+- LLM-agnostic: Uses standard tools (Read/Write/Bash) rather than SDK-specific features
 - The pattern (three tiers, progressive disclosure) is storage-agnostic
-- Start simple with files, migrate only when you hit real limits (most never will)
-- Since plain text file based, github could be your persistence solution
+- Start simple with files, migrate only when hitting real limits (M5 explores this path)
+- Plain text files work with version control and are human-readable for debugging
